@@ -38,8 +38,8 @@
        (find-off-by-one (cdr primaries)))))
 
 (let-values ([(primary matching) (find-off-by-one input)])
-  (printf "primary:  ~s\n" primary)
-  (printf "matching: ~s\n" matching)
+  (printf "primary:  ~a\n" primary)
+  (printf "matching: ~a\n" matching)
   (let* ([l1 (string->list primary)]
          [l2 (string->list matching)]
          [same (reverse (foldl (lambda (c1 c2 result)
@@ -49,4 +49,4 @@
                       '()
                       l1
                       l2))])
-    (println (list->string same))))
+    (printf "common:   ~a\n" (list->string same))))
