@@ -7,9 +7,6 @@
 (define (count-of char string)
   (count (lambda (c) (eq? c char)) (string->list string)))
 
-(define (string->uniq-chars string)
-  (remove-duplicates (string->list string)))
-
 (define (repeat-by? desired-count string)
   (let* ([chars (remove-duplicates (string->list string))]
          [counts (map (lambda (c) (count-of c string)) chars)])
