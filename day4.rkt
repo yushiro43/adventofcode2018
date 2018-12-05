@@ -11,30 +11,34 @@
 (define current-guard '())
 (define sleep-start '())
 
+(define (new-guard-match match)
+  (set! current-guard (cadr match)))
+
+(define (sleep-start-match match)
+  (set! sleep-start (string->number (cadr match))))
+
+(define (sleep-stop-match match)
+  (let ([minutes (range sleep-start (string->number (cadr match)) 1)]
+        [old-minutes (hash-ref asleep current-guard (list))])
+    (hash-set! asleep
+               current-guard
+               (append old-minutes minutes))))
+
 (for-each (lambda (line)
-            (let ([guard-match (regexp-match guard-regex line)]
-                  [start-match (regexp-match sleep-regex line)]
-                  [stop-match  (regexp-match awake-regex line)])
-              (cond [guard-match (set! current-guard (cadr guard-match))]
-                    [start-match (set! sleep-start (string->number (cadr start-match)))]
-                    [stop-match
-                     (let ([minutes (range sleep-start (string->number (cadr stop-match)) 1)])
-                       (hash-set! asleep
-                                  current-guard
-                                  (append (hash-ref asleep current-guard (list)) minutes)))])))
-          input)
+            (cond [(regexp-match guard-regex line) => new-guard-match]
+                  [(regexp-match sleep-regex line) => sleep-start-match]
+                  [(regexp-match awake-regex line) => sleep-stop-match]))
+              input)
 
-(define (find-sleepiest-guard guards sleepiest sleepiest-minutes)
-  (if (empty? guards)
-      sleepiest
-      (let* ([guard (car guards)]
-             [sleep-minutes (hash-ref asleep guard)]
-             [sleep-total (length sleep-minutes)])
-        (if (> sleep-total sleepiest-minutes)
-            (find-sleepiest-guard (cdr guards) guard sleep-total)
-            (find-sleepiest-guard (cdr guards) sleepiest sleepiest-minutes)))))
-
-(define sleepiest-guard (find-sleepiest-guard (hash-keys asleep) '() 0))
+(define-values (sleepiest-guard max-minutes)
+  (for/fold ([sleepiest '()]
+             [max-minutes 0])
+            ([guard (hash-keys asleep)])
+    (let* ([minutes-list (hash-ref asleep guard)]
+           [minutes (length minutes-list)])
+      (if (> minutes max-minutes)
+          (values guard minutes)
+          (values sleepiest max-minutes)))))
 
 (printf "strategy 1\n")
 (printf "sleepiest guard: #~a\n" sleepiest-guard)
@@ -42,7 +46,7 @@
 (define by-minute (make-hash))
 
 (for-each (lambda (minute)
-            (hash-set! by-minute minute (add1 (hash-ref by-minute minute 0))))
+            (hash-update! by-minute minute add1 0))
           (hash-ref asleep sleepiest-guard))
 
 (printf "sleepiest minute: ~s\n"
@@ -57,19 +61,18 @@
     (hash-set! by-minute-global minute (hash-set hash guard (add1 (hash-ref hash guard 0))))))
 
 (for-each (lambda (guard)
-            (for-each (lambda (minute) (inc-guard-count guard minute))
+            (for-each (curry inc-guard-count guard)
                       (hash-ref asleep guard)))
           (hash-keys asleep))
 
-(define (sort-guards a b)
-  (< (cdr a) (cdr b)))
+(define (max-hash-value hsh)
+  (last (sort (hash->list hsh) #:key cdr <)))
 
 (define sleepiest
   (last (sort (hash->list by-minute-global)
-              (lambda (a b)
-                (< (cdr (last (sort (hash->list (cdr a)) sort-guards)))
-                   (cdr (last (sort (hash->list (cdr b)) sort-guards))))))))
+              #:key (lambda (pair) (cdr (max-hash-value (cdr pair))))
+              <)))
 
 (printf "strategy 2\n")
 (printf "sleepiest guard: #~a\n" (car sleepiest))
-(printf "sleepiest minute: ~a\n" (car (last (sort (hash->list (cdr sleepiest)) sort-guards))))
+(printf "sleepiest minute: ~a\n" (car (max-hash-value (cdr sleepiest))))
