@@ -27,11 +27,6 @@
 
 (walk all-steps (set))
 
-(define total-sleep 0)
-(define (my-sleep s)
-  (set! total-sleep (+ total-sleep s))
-  (sleep (/ s 10)))
-
 (define (get-time step)
   (+ 60 (- (char->integer (car (string->list step))) 64)))
 
