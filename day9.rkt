@@ -1,84 +1,41 @@
 #lang racket
 
-(define input (file->lines "day9-input.txt"))
+(require "deque.rkt")
 
-;(define player-count 9)
-;(define last-marble 25)
+(define (play-turn marble circle scores player-num)
+  (if (zero? (modulo marble 23))
+    (begin
+      (deque-rotate! circle -7)
+      (let ([removed-marble (deque-pop-left! circle)])
+        (hash-update! scores player-num (lambda (s) (+ s marble removed-marble)) 0))
+      (deque-rotate! circle 1))
+    (begin
+      (deque-rotate! circle 2)
+      (deque-prepend! circle marble))))
 
-;(define player-count 10)
-;(define last-marble 1618)
+(define (play players marble-count)
+  (let ([circle (deque 0)]
+        [scores (make-hash)])
+    (for ([marble (in-range 1 (add1 marble-count))])
+      (let ([player-num (modulo marble players)])
+        (play-turn marble circle scores player-num)
+        #;(println (deque->list circle))))
+    scores))
 
-(define input-match (regexp-match #rx"([0-9]+) players.* ([0-9]+) points" (first input)))
-(define player-count (string->number (second input-match)))
-(define last-marble (string->number (third input-match)))
+(define (high-score scores)
+  (last (sort (hash-values scores) <)))
 
-(define score (make-hash))
+(require rackunit)
 
-(define marbles (range (add1 last-marble)))
+(test-case "with 9 players and 25 marbles"
+           (check-eq? (high-score (play 9 25)) 32))
 
-(struct position (prev value next) #:mutable)
+(test-case "with 10 players and 1618 marbles"
+           (check-eq? (high-score (play 10 1618)) 8317))
 
-(define circle-length 0)
-(define current-position '())
-
-(define (build-circle)
-  (define first-pos (position '() (first marbles) '()))
-  (set-position-prev! first-pos first-pos)
-  (set-position-next! first-pos first-pos)
-  (set! circle-length 1)
-  (set! current-position first-pos))
-
-(set! marbles (drop marbles 1))
-
-(define (place-marble number)
-  (let* ([insert-pos (position-next current-position)]
-         [old-next (position-next insert-pos)]
-         [new-pos (position insert-pos number old-next)])
-    (set-position-next! insert-pos new-pos)
-    (set-position-prev! old-next new-pos)
-    (set! current-position new-pos)
-    (set! circle-length (add1 circle-length))))
-
-(define (circle->list)
-  (let-values ([(lst _)
-    (for/fold ([l (list)]
-               [c current-position])
-      ([_ circle-length])
-      (values
-        (append l (list (position-value c)))
-        (position-next c)))])
-    lst))
-
-(define (print-circle)
-  (println (circle->list)))
-
-(define (play iteration)
-  ;(print-circle)
-  (if (empty? marbles)
-    current-position
-    (let ([player-num (modulo iteration player-count)]
-          [marble (first marbles)])
-      ;(println marble)
-      (if (= (modulo marble 23) 0)
-        (begin
-          (hash-update! score player-num (lambda (s) (+ s marble)) 0)
-          (let* ([pos-to-remove (for/fold ([p current-position]) ([_ (range 7)]) (values (position-prev p)))])
-            (set-position-next! (position-prev pos-to-remove) (position-next pos-to-remove))
-            (set-position-prev! (position-next pos-to-remove) (position-prev pos-to-remove))
-            (set! current-position (position-next pos-to-remove))
-            (set! circle-length (sub1 circle-length))
-            (hash-update! score player-num (lambda (s) (+ s (position-value pos-to-remove))) 0)))
-        (place-marble marble))
-      (set! marbles (drop marbles 1))
-      (play (add1 iteration)))))
-
-(build-circle)
-(define p1 (play 0))
-(printf "part 1: ~s\n" (last (sort (hash-values score) <)))
-
-(set! last-marble (* 100 last-marble))
-(set! score (make-hash))
-(set! marbles (range (add1 last-marble)))
-(build-circle)
-(define p2 (play 0))
-(printf "part 2: ~s\n" (last (sort (hash-values score) <)))
+(let* ([input (file->lines "day9-input.txt")]
+       [input-match (regexp-match #rx"([0-9]+) players.* ([0-9]+) points" (first input))]
+       [player-count (string->number (second input-match))]
+       [marble-count (string->number (third input-match))])
+  (printf "part 1: ~s\n" (high-score (play player-count marble-count)))
+  (printf "part 2: ~s\n" (high-score (play player-count (* 100 marble-count)))))
