@@ -25,13 +25,13 @@
 (define (high-score scores)
   (last (sort (hash-values scores) <)))
 
-(require rackunit)
-
-(test-case "with 9 players and 25 marbles"
-           (check-eq? (high-score (play 9 25)) 32))
-
-(test-case "with 10 players and 1618 marbles"
-           (check-eq? (high-score (play 10 1618)) 8317))
+;(require rackunit)
+;
+;(test-case "with 9 players and 25 marbles"
+;           (check-eq? (high-score (play 9 25)) 32))
+;
+;(test-case "with 10 players and 1618 marbles"
+;           (check-eq? (high-score (play 10 1618)) 8317))
 
 (let* ([input (file->lines "day9-input.txt")]
        [input-match (regexp-match #rx"([0-9]+) players.* ([0-9]+) points" (first input))]
