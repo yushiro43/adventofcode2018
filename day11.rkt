@@ -18,7 +18,25 @@
     (apply vector (for/list ([col (in-range 1 301)])
       (calc-cell-level col row serial-number))))))
 
+(define sum-power-cache (make-hash))
+
+(define (sum-power x y size serial-number grid)
+  (let ([key (list x y size)])
+    (cond [(hash-has-key? sum-power-cache key) (hash-ref sum-power-cache key)]
+          [(or (>= x 300) (>= y 300)) 0]
+          [(= 1 size) (vector-ref (vector-ref grid y) x)]
+          [(= 0 size) 0]
+          [else
+            (let ([power (- (+ (sum-power x y (sub1 size) serial-number grid)
+                               (sum-power (add1 x) (add1 y) (sub1 size) serial-number grid)
+                               (sum-power (+ x (- size 1)) y 1 serial-number grid)
+                               (sum-power x (+ y (- size 1)) 1 serial-number grid))
+                            (sum-power (add1 x) (add1 y) (- size 2) serial-number grid))])
+              (hash-set! sum-power-cache key power)
+              power)])))
+
 (define (find-highest-power-square serial-number fixed-size)
+  (set! sum-power-cache (make-hash))
   (let ([grid (build-grid serial-number)]
         [high 0]
         [high-x -1]
@@ -27,23 +45,15 @@
     (for* ([row (in-range 0 300)]
            [col (in-range 0 300)]
            [size (if fixed-size (list fixed-size) (range 1 (- 301 (max row col))))])
-      (let ([total 0])
-        (for* ([xo (range 0 size)]
-               [yo (range 0 size)])
-          (let ([yy (+ row yo)]
-                [xx (+ col xo)])
-            ;(println (list xx yy))
-            (if (or (>= xx 300) (>= yy 300))
-              '()
-              (set! total (+ total (vector-ref (vector-ref grid yy) xx))))))
-        (when (> total high)
+      ;(printf "~a%\n" (~r (* (/ row 300.0) 100) #:precision 1))
+      (let ([power (sum-power col row size serial-number grid)])
+        (when (> power high)
           (begin
-            (set! high total)
+            (set! high power)
             (set! high-x col)
             (set! high-y row)
             (set! high-size size)))))
     (values high (add1 high-x) (add1 high-y) high-size)))
-
 
 (require rackunit)
 
