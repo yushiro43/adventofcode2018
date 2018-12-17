@@ -39,31 +39,28 @@
                name)])
       matching)))
 
-(define like-three-or-more
-  (for/list ([sample samples]
-             #:when (>= (length (matching-instructions sample instructions)) 3))
-    sample))
+(define (find-instruction-opcodes samples avail-instructions [found (hash)])
+  (if (hash-empty? avail-instructions)
+    found
+    (let ([sample (findf (lambda (s) (= (length (matching-instructions s avail-instructions)) 1)) samples)])
+      (let* ([opcode (string->number (first (string-split (second (string-split sample "\n")))))]
+             [remaining-samples (remove sample samples)]
+             [instr-name (first (matching-instructions sample avail-instructions))]
+             [remaining-instructions (hash-remove avail-instructions instr-name)])
+        (find-instruction-opcodes remaining-samples remaining-instructions (hash-set found opcode (hash-ref instructions instr-name)))))))
 
-(printf "part 1: ~a\n" (length like-three-or-more))
+(printf "part 1: ~a\n"
+        (length 
+          (filter
+            (lambda (s) (>= (length (matching-instructions s instructions)) 3))
+            samples)))
 
-(define (elimination samples avail-instructions [found (hash)])
-  (if (empty? samples)
-    '()
-    (let ([matching-one (for/list ([sample samples] #:when (= (length (matching-instructions sample avail-instructions)) 1)) sample)])
-      (if (pair? matching-one)
-        (let* ([first-matching (first matching-one)]
-               [opcode (string->number (first (string-split (second (string-split first-matching "\n")))))]
-               [remaining-samples (remove first-matching samples)]
-               [instr-name (first (matching-instructions first-matching avail-instructions))]
-               [remaining-instructions (hash-remove avail-instructions instr-name)])
-          (elimination remaining-samples remaining-instructions (hash-set found opcode (hash-ref instructions instr-name))))
-        found))))
+(define instructions-with-opcodes (find-instruction-opcodes samples instructions))
 
-(define real-instructions (elimination samples instructions))
-
-(let ([mem (make-hash '((0 . 0) (1 . 0) (2 . 0) (3 . 0)))])
-  (for ([instruction (string-split program "\n")])
-    (match-let ([(list opcode a b c) (map string->number (regexp-match* "[0-9]+" instruction))])
-      (let ([instr-fn (hash-ref real-instructions opcode)])
-        (apply instr-fn (list a b c mem)))))
-  (printf "part 2: ~a\n" (hash-ref mem 0)))
+(printf "part 2: ~a\n"
+  (let ([mem (make-hash '((0 . 0) (1 . 0) (2 . 0) (3 . 0)))])
+    (for ([instruction (string-split program "\n")])
+      (match-let ([(list opcode a b c) (map string->number (regexp-match* "[0-9]+" instruction))])
+        (let ([instr-fn (hash-ref instructions-with-opcodes opcode)])
+          (apply instr-fn (list a b c mem)))))
+    (hash-ref mem 0)))
